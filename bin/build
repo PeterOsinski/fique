@@ -1,0 +1,23 @@
+#!/bin/bash
+
+DIR=`pwd`
+
+rm -rf src
+mkdir src
+
+ln -sf $DIR/node_modules/ $DIR/src/node_modules
+
+coffee -cw -o src/lib lib/
+
+#function finish {
+#  find . -name "*.js" \
+#        -not -path "./node_modules/*" \
+#        -not -path "./public/*" \
+#        | while read i; do rm $i; echo $i; done
+#}
+
+function finish {
+    echo 'Removing ./src dir'
+    rm -rf src/
+}
+trap finish EXIT

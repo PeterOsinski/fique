@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "async": "^0.9.0",
+    "debug": "^2.1.3"
+  },
+  "dependencies": {
+    "tail": "^0.4.0"
+  }
+}
