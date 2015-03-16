@@ -100,7 +100,7 @@ class Server
 	getFilePath: () -> @_filepath
 
 	generateFileName = (self) ->
-		self.name + '_' + new Date().getTime()
+		self.name + '_' + (new Date().getTime()) + '_' + getOffset self
 
 	getCurrentFilePath = (self) ->
 		self.path + '/' + self._filename
@@ -120,7 +120,6 @@ class Server
 		cp = getCurrentFilePath @
 		offset = getOffset(@) + @_messagesInFile
 		setOffset @, offset
-		fs.renameSync cp, cp + '_' + @_messagesInFile 
 
 	getOffset = (self) -> 
 		offsetFile = self.path + '/.' + self.name + '_offset'

@@ -4,11 +4,12 @@ async = require 'async'
 
 config = 
 	name: 'foo_bar'
-	path: '/tmp'
+	path: '/tmp',
+	offset: 2210
 
 consumer = new Consumer config
 
-consumer.onMessage (data) ->
-	debug data
+consumer.onMessage (data, offset) ->
+	debug data, offset
 
 consumer.start()

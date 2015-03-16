@@ -2,6 +2,7 @@ fs = require 'fs'
 debug = (require 'debug')('fq:Consumer')
 readline = require 'readline'
 stream = require 'stream'
+tailFile = (require 'tail').Tail
 
 class Consumer
 	constructor: (config) ->
@@ -14,6 +15,7 @@ class Consumer
 
 		@path = validateParam 'path', config #where queue files are stored
 		@name = validateParam 'name', config #which queue this consumer should consume
+		@_offset = config.offset || 0 #keep the current offset
 
 	validateParam = (param, config) ->
 		if not config[param]
@@ -28,58 +30,88 @@ class Consumer
 		if not @_consumeFn
 			throw Error 'Define onMessage function!'
 
-		processClosedFiles @, () =>
-			processOpenedFiles @
+		processFiles @
 
-	processClosedFiles = (self, cb) ->
-		debug 'Processing closed files'
-		getFile self, 'ready', (filename) ->
-			if not filename
-				debug 'No closed files to process'
-				return cb()
+	processFiles = (self) ->
 
-			debug 'Opening closed file', filename
+		_data = getFileForOffset self
 
-			self._filename = filename
-			self._file = fs.createReadStream self.path + '/' + filename
+		if _data
+			self._filename = _data.file
 
-			self._rl = readline.createInterface input: self._file, output: new stream
+		if not self._filename
+			self._consumeFn error: 'Offset out of range!'
+			return
 
-			self._rl.on 'line', (data) =>
-				self._consumeFn data
+		debug 'Opening file', self._filename
 
-			self._rl.on 'close', () =>
-				markFileAsProcessed self, () =>
-					self.start()
+		self._file = fs.createReadStream getCurrentFilePath(self)
 
-	processOpenedFiles = (self) ->
-		debug 'Processing opened files'
-		getFile self, 'opened', (filename) ->
-			if not filename
+		self._rl = readline.createInterface input: self._file, output: new stream
+
+		skipped = 0
+		self._rl.on 'line', (data) =>
+			if _data and _data.skip > skipped
+				skipped++
 				return
+			self._offset++
+			self._consumeFn data, self._offset
 
-			debug 'Processing file', filename
+		self._rl.on 'close', () =>
 
-			self._filename = filename
+				if getCurrentProducedFile(self) == self._filename
+					debug 'File ended, but is currently produced, following the tail %s', self._filename
+					openCurrentFile self
+				else
+					debug 'Closed file looking for next file, offset %s', self._offset
+					processFiles self
+
+	openCurrentFile = (self) ->
+		currentFile = getCurrentProducedFile self
+
+		if not currentFile
+			return debug 'Did not find current file...'
+
+		debug 'Found current file, opening %s', currentFile
+
+		self._filename = currentFile
+		
+		tail = new tailFile getCurrentFilePath(self), "\n", {}, true
+		tail.on 'error', (err) =>
+			debug err
+
+		tail.on 'line', (line) =>
+			self._offset++
+			self._consumeFn line, self._offset
+
+	getCurrentProducedFile = (self) ->
+		fs.readFileSync self.path + '/.' + self.name + '_current_file', encoding: 'utf8'
+
+	getCurrentFilePath = (self) ->
+		[self.path, self._filename].join '/'
+
+	getFileForOffset = (self) ->
+		files = fs.readdirSync self.path
+		.filter (file) =>
+			file.indexOf(self.name + '_') == 0
+		.sort()
+
+		for file, k in files
+			getOffsetFromFilename = (fn) => 
+				fn && parseInt fn.substr(self.name.length + 15).substr(0, 13) || 0
 			
+			fileOffset = getOffsetFromFilename file
+			nextFileOffset = getOffsetFromFilename files[k + 1]
+			if fileOffset <= self._offset and (nextFileOffset > self._offset or not nextFileOffset)
+				debug 'Found file %s for offset %s, skip %s', file, self._offset, self._offset - fileOffset
+				return {
+					file: file,
+					skip: (self._offset - fileOffset) || 0
+				}
 
-	markFileAsProcessed = (self, cb) ->
-		path = self.path + '/' + self._filename
-		fs.rename path, path + '_processed', cb
 
-	getFile = (self, type, cb) ->
-		fs.readdir self.path, (err, files) ->
-			
-			for file in files
-				
-				name = file.indexOf(self.name) == 0
-				status = file.indexOf('_fq_' + type) == (file.length - (type.length  + 4))
 
-				if name and status
-					cb file
-					break
 
-			cb false
 					
 
 module.exports = Consumer
