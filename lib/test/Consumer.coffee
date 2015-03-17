@@ -5,7 +5,7 @@ async = require 'async'
 config = 
 	name: 'foo_bar'
 	path: '/tmp',
-	offset: 2210
+	offset: 15
 
 consumer = new Consumer config
 

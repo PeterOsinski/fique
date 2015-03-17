@@ -15,6 +15,4 @@ producer = new Producer config
 
 setInterval () ->
 	producer.push Math.random()
-	producer.push Math.random()
-	producer.push Math.random()
-, 10
+, 500

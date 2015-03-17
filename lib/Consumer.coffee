@@ -12,6 +12,7 @@ class Consumer
 		@_consumeFn = null
 		@_rl = null #readline interface
 		@_scanInterval = null #interval that scans for new files
+		@_tailFile = null #here goes the currently tailed filename
 
 		@path = validateParam 'path', config #where queue files are stored
 		@name = validateParam 'name', config #which queue this consumer should consume
@@ -45,7 +46,7 @@ class Consumer
 
 		debug 'Opening file', self._filename
 
-		self._file = fs.createReadStream getCurrentFilePath(self)
+		self._file = fs.createReadStream self.path + '/' + self._filename
 
 		self._rl = readline.createInterface input: self._file, output: new stream
 
@@ -58,10 +59,10 @@ class Consumer
 			self._consumeFn data, self._offset
 
 		self._rl.on 'close', () =>
-
 				if getCurrentProducedFile(self) == self._filename
 					debug 'File ended, but is currently produced, following the tail %s', self._filename
 					openCurrentFile self
+					fileWatcher self
 				else
 					debug 'Closed file looking for next file, offset %s', self._offset
 					processFiles self
@@ -72,11 +73,14 @@ class Consumer
 		if not currentFile
 			return debug 'Did not find current file...'
 
+		if currentFile == self._tailFile
+			return debug 'File %s is already tailed, skipping tailing', currentFile
+
 		debug 'Found current file, opening %s', currentFile
 
-		self._filename = currentFile
-		
-		tail = new tailFile getCurrentFilePath(self), "\n", {}, true
+		self._tailFile = currentFile
+
+		tail = new tailFile self.path + '/' + self._tailFile
 		tail.on 'error', (err) =>
 			debug err
 
@@ -84,11 +88,12 @@ class Consumer
 			self._offset++
 			self._consumeFn line, self._offset
 
+	fileWatcher = (self) -> 
+		fs.watch self.path + '/.' + self.name + '_current_file', () =>
+			openCurrentFile self
+
 	getCurrentProducedFile = (self) ->
 		fs.readFileSync self.path + '/.' + self.name + '_current_file', encoding: 'utf8'
-
-	getCurrentFilePath = (self) ->
-		[self.path, self._filename].join '/'
 
 	getFileForOffset = (self) ->
 		files = fs.readdirSync self.path
@@ -107,11 +112,6 @@ class Consumer
 				return {
 					file: file,
 					skip: (self._offset - fileOffset) || 0
-				}
-
-
-
-
-					
+				}					
 
 module.exports = Consumer
