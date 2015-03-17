@@ -3,13 +3,13 @@ debug = require('debug')('fq:test')
 async = require 'async'
 
 config = 
-	name: 'foo_bar'
+	name: 'test1'
 	path: '/tmp',
-	offset: 15
+	offset: 5000
 
 consumer = new Consumer config
 
 consumer.onMessage (data, offset) ->
-	debug data, offset
+	debug offset
 
 consumer.start()

@@ -3,7 +3,7 @@ debug = require('debug')('fq:test')
 async = require 'async'
 
 config = 
-	name: 'foo_bar'
+	name: 'test1'
 
 producer = new Producer config
 
@@ -14,5 +14,13 @@ producer = new Producer config
 # 	process.exit()
 
 setInterval () ->
-	producer.push Math.random()
-, 500
+	producer.push JSON.stringify
+		a: Math.random()
+		b: Math.random()
+		c: Math.random()
+		d: Math.random()
+		aa: Math.random()
+		bb: Math.random()
+		cc: Math.random()
+		dd: Math.random()
+, 100

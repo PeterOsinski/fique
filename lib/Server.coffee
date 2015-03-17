@@ -35,12 +35,21 @@ class Server
 		if fs.existsSync getSockPath(self)
 			fs.unlinkSync getSockPath(self)
 
+		messagesCount = 0
+		setInterval () ->
+			debug 'Messages received: %s', messagesCount
+			messagesCount = 0
+		, 10000
+
 		@_server = net.createServer (sock) =>
 			
+			debug 'Client connected to server'
+
 			streamPass = new stream.PassThrough();
 			self._rl = readline.createInterface input: streamPass, output: new stream
 
 			self._rl.on 'line', (line) ->
+				messagesCount++
 				self.push line.toString()
 				
 			sock.on 'data', (data) ->
@@ -48,9 +57,6 @@ class Server
 
 			sock.on 'end', () ->
 				debug 'Client disconnected'
-
-			sock.on 'connection', () ->
-				debug 'Client connected'
 
 		@_server.listen getSockPath(self), () ->
 			debug 'Server listening'
