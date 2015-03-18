@@ -4,7 +4,7 @@ debug = (require 'debug')('fq:Server')
 readline = require 'readline'
 stream = require 'stream'
 
-class Server
+class Broker
 	constructor: (config) ->
 		@_file = null 		#current file handle
 		@_filename = null 	#current file name
@@ -43,7 +43,7 @@ class Server
 
 		@_server = net.createServer (sock) =>
 			
-			debug 'Client connected to server'
+			debug 'Client connected to broker'
 
 			streamPass = new stream.PassThrough();
 			self._rl = readline.createInterface input: streamPass, output: new stream
@@ -59,7 +59,7 @@ class Server
 				debug 'Client disconnected'
 
 		@_server.listen getSockPath(self), () ->
-			debug 'Server listening'
+			debug 'Broker listening'
 
 
 	validateParam = (param, config) ->
@@ -93,8 +93,9 @@ class Server
 			newFile @
 
 		msg += "\n"
+		msg = new Buffer msg, 'binary'
+		@_fileSize += msg.length
 		@_messagesInFile++
-		@_fileSize += Buffer.byteLength(msg, 'utf8')
 
 		@_file.write msg, (err) =>
 			if err
@@ -146,7 +147,7 @@ class Server
 
 	openFile = (self) ->
 		fp = getCurrentFilePath self
-		self._file = fs.createWriteStream(fp, flags: 'a')
+		self._file = fs.createWriteStream(fp, flags: 'a', encoding: 'binary')
 
 	newFile = (self) ->
 		self.closeFile()
@@ -161,4 +162,4 @@ class Server
 
 		debug 'New file', self._filename
 
-module.exports = Server
+module.exports = Broker

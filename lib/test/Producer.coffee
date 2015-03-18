@@ -7,12 +7,6 @@ config =
 
 producer = new Producer config
 
-# async.timesSeries 500, (n, next) ->
-# 	producer.push Math.random(), () ->
-# 		next null, true
-# , () ->
-# 	process.exit()
-
 setInterval () ->
 	producer.push JSON.stringify
 		a: Math.random()
