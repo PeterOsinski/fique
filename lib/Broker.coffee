@@ -93,7 +93,7 @@ class Broker
 			newFile @
 
 		msg += "\n"
-		msg = new Buffer msg, 'binary'
+		msg = new Buffer msg, 'utf8'
 		@_fileSize += msg.length
 		@_messagesInFile++
 
@@ -147,7 +147,7 @@ class Broker
 
 	openFile = (self) ->
 		fp = getCurrentFilePath self
-		self._file = fs.createWriteStream(fp, flags: 'a', encoding: 'binary')
+		self._file = fs.createWriteStream(fp, flags: 'a')
 
 	newFile = (self) ->
 		self.closeFile()
