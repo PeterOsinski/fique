@@ -98,10 +98,17 @@ class Broker
 			setCurrentFile self
 
 	addToBuffer = (self, msg) ->
+		if msg.length == 0 or not msg
+			return
+
 		if not self._file
 			newFile self
 
-		msg = JSON.stringify(msg.toString()) + "\n"
+		msg = JSON.stringify(msg.toString().trim()) + "\n"
+
+		if msg == 'null' or not msg
+			return
+
 		self._buffer += msg
 
 		self._fileSize += msg.length
@@ -117,13 +124,18 @@ class Broker
 			flushBuffer self
 
 	flushBuffer = (self, cb) ->
+
+		if self._buffer.length == 0
+			return
+
 		debug 'Flushing buffer'
 
 		self._messagesInBuffer = 0
 		self._bufferSize = 0
 
 		msg = new Buffer self._buffer, 'utf8'
-		self._buffer = null
+
+		self._buffer = ''
 
 		self._file.write msg, (err) =>
 			if err
