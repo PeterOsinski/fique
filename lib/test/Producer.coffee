@@ -6,6 +6,9 @@ if cluster.isMaster
 
 	cluster.fork()
 	cluster.fork()
+	cluster.fork()
+	cluster.fork()
+	cluster.fork()
 
 else
 
@@ -26,4 +29,12 @@ else
 			bb: Math.random()
 			cc: Math.random()
 			dd: Math.random()
-	, 10
+			aaa: Math.random()
+			bbb: Math.random()
+			ccc: Math.random()
+			ddd: Math.random()
+			aaaa: Math.random()
+			bbbb: Math.random()
+			cccc: Math.random()
+			dddd: Math.random()
+	, 100

@@ -8,15 +8,24 @@ class Broker
 	constructor: (config) ->
 		@_file = null 		#current file handle
 		@_filename = null 	#current file name
+		
 		@_messagesInFile = 0
 		@_fileSize = 0
+
+		@_buffer = '' #buffer that keeps the messages
+		@_messagesInBuffer = 0
+		@_bufferSize = 0
+
 		@_rl = null
 
 		@path = validateParam 'path', config #where to store queue files
 		@name = validateParam 'name', config #name of the queue
 
-		@maxMessagesPerFile = parseInt config.maxMessagesPerFile or 1000
-		@maxFileSize = parseInt config.maxFileSize or 1024 * 100 #in bytes
+		# following values should be passed as bytes
+		@maxFileMessages = parseInt config.maxFileMessages or 1000
+		@maxFileSize = parseInt config.maxFileSize or 1024 * 100 
+		@maxBufferMessages = parseInt config.maxBufferMessages or 10000
+		@maxBufferSize = parseInt config.maxBufferSize or 1024 * 1000
 
 		startServer @
 		pickupLastFile @
@@ -24,8 +33,9 @@ class Broker
 
 	onCloseHandler = (self) ->
 		process.on 'SIGINT', () ->
-			setCurrentFileCount self
-			process.exit()
+			flushBuffer self, () ->
+				setCurrentFileCount self
+				process.exit()
 
 	getSockPath = (self) ->
 		return '/tmp/' + self.name + '.sock'
@@ -35,10 +45,10 @@ class Broker
 		if fs.existsSync getSockPath(self)
 			fs.unlinkSync getSockPath(self)
 
-		messagesCount = 0
+		messagesReceived = 0
 		setInterval () ->
-			debug 'Messages received: %s', messagesCount
-			messagesCount = 0
+			debug 'Messages received: %s', messagesReceived
+			messagesReceived = 0
 		, 10000
 
 		@_server = net.createServer (sock) =>
@@ -48,9 +58,9 @@ class Broker
 			streamPass = new stream.PassThrough();
 			self._rl = readline.createInterface input: streamPass, output: new stream
 
-			self._rl.on 'line', (line) ->
-				messagesCount++
-				self.push line.toString()
+			self._rl.on 'line', (line) =>
+				messagesReceived++
+				addToBuffer self, line.toString()
 				
 			sock.on 'data', (data) ->
 				streamPass.write data
@@ -87,17 +97,35 @@ class Broker
 			
 			setCurrentFile self
 
-	push: (msg, cb) ->
+	addToBuffer = (self, msg) ->
+		if not self._file
+			newFile self
 
-		if not @_file or @_messagesInFile >= @maxMessagesPerFile or @_fileSize >= @maxFileSize
-			newFile @
+		msg = JSON.stringify(msg.toString()) + "\n"
+		self._buffer += msg
 
-		msg += "\n"
-		msg = new Buffer msg, 'utf8'
-		@_fileSize += msg.length
-		@_messagesInFile++
+		self._fileSize += msg.length
+		self._bufferSize += msg.length
+		self._messagesInFile++
+		self._messagesInBuffer++
 
-		@_file.write msg, (err) =>
+		if self._messagesInFile >= self.maxFileMessages or self._fileSize >= self.maxFileSize
+			flushBuffer self
+			newFile self
+
+		if self._messagesInBuffer >= self.maxBufferMessages or self._bufferSize >= self.maxBufferSize
+			flushBuffer self
+
+	flushBuffer = (self, cb) ->
+		debug 'Flushing buffer'
+
+		self._messagesInBuffer = 0
+		self._bufferSize = 0
+
+		msg = new Buffer self._buffer, 'utf8'
+		self._buffer = null
+
+		self._file.write msg, (err) =>
 			if err
 				debug err
 			cb && cb()
