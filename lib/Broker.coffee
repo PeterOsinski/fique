@@ -24,8 +24,8 @@ class Broker
 		# following values should be passed as bytes
 		@maxFileMessages = parseInt config.maxFileMessages or 1000
 		@maxFileSize = parseInt config.maxFileSize or 1024 * 100 
-		@maxBufferMessages = parseInt config.maxBufferMessages or 10000
-		@maxBufferSize = parseInt config.maxBufferSize or 1024 * 1000
+		@maxBufferMessages = parseInt config.maxBufferMessages or 10
+		@maxBufferSize = parseInt config.maxBufferSize or 1024 * 10
 
 		startServer @
 		pickupLastFile @
@@ -104,10 +104,7 @@ class Broker
 		if not self._file
 			newFile self
 
-		msg = JSON.stringify(msg.toString().trim()) + "\n"
-
-		if msg == 'null' or not msg
-			return
+		msg += "\n"
 
 		self._buffer += msg
 
@@ -126,7 +123,7 @@ class Broker
 	flushBuffer = (self, cb) ->
 
 		if self._buffer.length == 0
-			return
+			return cb && cb()
 
 		debug 'Flushing buffer'
 
