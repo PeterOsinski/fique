@@ -15,6 +15,8 @@ else
 	debug = require('debug')('fq:test:worker' + cluster.worker.id)
 	debug 'New worker!'
 	config = 
+		# brokerHost: '127.0.0.1'
+		# brokerPort: 5678
 		name: 'test1'
 
 	producer = new Producer config

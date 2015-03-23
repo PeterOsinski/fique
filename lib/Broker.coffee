@@ -17,9 +17,11 @@ class Broker
 		@_bufferSize = 0
 
 		@_rl = null
+		@_server = null # variable with server
 
 		@path = validateParam 'path', config #where to store queue files
 		@name = validateParam 'name', config #name of the queue
+		@port = parseInt config.port or false #port on which should stand the server
 
 		# following values should be passed as bytes
 		@maxFileMessages = parseInt config.maxFileMessages or 1000
@@ -33,6 +35,7 @@ class Broker
 
 	onCloseHandler = (self) ->
 		process.on 'SIGINT', () ->
+			debug 'Received SIGINT'
 			flushBuffer self, () ->
 				setCurrentFileCount self
 				process.exit()
@@ -51,16 +54,16 @@ class Broker
 			messagesReceived = 0
 		, 10000
 
-		@_server = net.createServer (sock) =>
+		streamPass = new stream.PassThrough();
+		self._rl = readline.createInterface input: streamPass, output: new stream
+
+		self._rl.on 'line', (line) =>
+			messagesReceived++
+			addToBuffer self, line.toString()
+
+		self._server = net.createServer (sock) =>
 			
 			debug 'Client connected to broker'
-
-			streamPass = new stream.PassThrough();
-			self._rl = readline.createInterface input: streamPass, output: new stream
-
-			self._rl.on 'line', (line) =>
-				messagesReceived++
-				addToBuffer self, line.toString()
 				
 			sock.on 'data', (data) ->
 				streamPass.write data
@@ -68,8 +71,12 @@ class Broker
 			sock.on 'end', () ->
 				debug 'Client disconnected'
 
-		@_server.listen getSockPath(self), () ->
-			debug 'Broker listening'
+		if self.port
+			self._server.listen self.port, () =>
+				debug 'Broker listening on port: %s', self.port
+		else
+			self._server.listen getSockPath(self), () =>
+				debug 'Broker listening on socket: %s', getSockPath self
 
 
 	validateParam = (param, config) ->

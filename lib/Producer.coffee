@@ -17,6 +17,13 @@ class Producer
 		@_connection = null
 
 		connectToBroker @
+		onCloseHandler @
+
+	onCloseHandler = (self) ->
+		process.on 'SIGINT', () ->
+			debug 'Received SIGINT'
+			send self, () ->
+				process.exit()
 
 	validateParam = (param, config) ->
 		if not config[param]

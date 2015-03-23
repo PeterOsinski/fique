@@ -8,5 +8,6 @@ config =
 	maxFileSize: 1024 * 1024 * 1
 	maxBufferSize: 1024 * 50
 	maxBufferMessages: 50
+	# port: 5678
 
 broker = new Broker config
